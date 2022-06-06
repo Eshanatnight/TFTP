@@ -1,16 +1,18 @@
+#![allow(dead_code)]
+
 mod macros;
 mod serialization;
-mod interface;
+pub mod interface;
 
 use bin_layout::{Decoder, Encoder};
 use macros::*;
-use ErrorCod::*;
+use ErrorCode::*;
 use Frame::*;
 
 #[derive(Clone)]
-struct Text(String);
+pub struct Text(String);
 
-enum ErrorCode {
+pub enum ErrorCode {
     NotDefined,
     FileNotFound,
     AccessViolation,
@@ -22,12 +24,12 @@ enum ErrorCode {
 }
 
 #[derive(Encoder, Decoder, Clone)]
-struct Request {
+pub struct Request {
     filename: Text,
     mode: Text,
 }
 
-enum Frame<'a> {
+pub enum Frame<'a> {
     Read(Request),
     Write(Request),
     Data { block: u16, bytes: &'a [u8] },

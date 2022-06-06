@@ -1,6 +1,10 @@
+#![allow(non_snake_case)]
+#![allow(unused_imports)]
+
 use bin_layout::Encoder;
 use std::{io::Result, thread, time::Duration};
-use tftp::*;
+use tftp::{Request, interface::{Server, Context, Method}};
+
 
 fn recv_msg(ctx: Context) -> String {
     let mut writer = Vec::new();

@@ -1,7 +1,6 @@
 use crate::*;
 use std::io;
-use std::io::ErrorKind::{TimedOut, WouldBlock};
-use std::io::*;
+use std::io::{*, ErrorKind::{TimedOut, WouldBlock}};
 use std::net::*;
 use std::time::Duration;
 

@@ -1,5 +1,5 @@
 [package]
-name = "TFTP"
+name = "tftp"
 version = "0.1.0"
 edition = "2021"
 
