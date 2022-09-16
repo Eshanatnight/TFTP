@@ -1,13 +1,13 @@
-#![allow(dead_code)]
-
+mod interface;
 mod macros;
 mod serialization;
-pub mod interface;
 
 use bin_layout::{Decoder, Encoder};
 use macros::*;
 use ErrorCode::*;
 use Frame::*;
+
+pub use interface::*;
 
 #[derive(Clone)]
 pub struct Text(String);
@@ -25,8 +25,8 @@ pub enum ErrorCode {
 
 #[derive(Encoder, Decoder, Clone)]
 pub struct Request {
-    filename: Text,
-    mode: Text,
+    pub filename: Text,
+    pub mode: Text,
 }
 
 pub enum Frame<'a> {
@@ -36,6 +36,8 @@ pub enum Frame<'a> {
     Acknowledge(u16),
     ErrMsg { code: ErrorCode, msg: Text },
 }
+
+//-------------------------------------------------------
 
 impl Request {
     pub fn new<I: Into<String>>(filename: I, mode: I) -> Self {

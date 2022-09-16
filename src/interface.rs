@@ -1,9 +1,11 @@
 use crate::*;
 use std::io;
-use std::io::{*, ErrorKind::{TimedOut, WouldBlock}};
+use std::io::ErrorKind::{TimedOut, WouldBlock};
+use std::io::*;
 use std::net::*;
 use std::time::Duration;
 
+#[derive(Debug, Clone, Copy)]
 pub enum Method {
     Read,
     Write,
@@ -15,8 +17,44 @@ pub struct Context {
     pub addr: SocketAddr,
 }
 
-impl Context
-{
+pub struct Server {
+    buf: [u8; 512],
+    pub socket: UdpSocket,
+}
+
+impl Server {
+    pub fn listen(addr: impl ToSocketAddrs) -> Self {
+        Self {
+            buf: [0; 512],
+            socket: UdpSocket::bind(addr).expect("Failed to bind socket"),
+        }
+    }
+
+    pub fn accept(&mut self) -> Result<Context> {
+        Ok(loop {
+            let (len, addr) = self.socket.recv_from(&mut self.buf)?;
+            recv_frame!(&self.buf[..len],
+                Read(req) => break Context { addr, req, method: Method::Read },
+                Write(req) => break Context { addr, req, method: Method::Write },
+                _ => {
+                    let error = ErrMsg {
+                        code: AccessViolation,
+                        msg: Text( "Only RRQ and WRQ are supported.".into())
+                    };
+                    self.socket.send_to(&error.encode(), addr)?;
+                }
+            );
+        })
+    }
+}
+
+fn recv_ack(socket: &UdpSocket) -> Result<u16> {
+    let mut buf = vec![0; 512];
+    let len = socket.recv(&mut buf)?;
+    recv_frame!(&mut buf[..len], Acknowledge(ack) => Ok(ack))
+}
+
+impl Context {
     pub fn send_data(self, reader: &mut impl io::Read) -> Result<()> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
         socket.set_read_timeout(Some(Duration::from_secs(7)))?;
@@ -48,9 +86,9 @@ impl Context
                 match recv_ack(&socket) {
                     Err(err) if matches!(err.kind(), WouldBlock | TimedOut) => {
                         if attapmt == 3 {
-                            let err_msg = ErrMsg {
+                            let err_msg = ErrMsg { 
                                 code: AccessViolation,
-                                msg: Text("Max retransmit reached".into())
+                                msg: Text("Max retransmit reached".into()) 
                             };
                             socket.send(&err_msg.encode())?;
                             return Err(err);
@@ -99,41 +137,4 @@ impl Context
             len = socket.recv(&mut buf)?;
         }
     }
-}
-
-pub struct Server {
-    buf: [u8; 512],
-    pub socket: UdpSocket,
-}
-
-impl Server {
-    pub fn listen(addr: impl ToSocketAddrs) -> Self {
-        Self {
-            buf: [0; 512],
-            socket: UdpSocket::bind(addr).expect("Failed to bind socket"),
-        }
-    }
-
-    pub fn accept(&mut self) -> Result<Context> {
-        Ok(loop {
-            let (len, addr) = self.socket.recv_from(&mut self.buf)?;
-            recv_frame!(&self.buf[..len],
-                Read(req) => break Context { addr, req, method: Method::Read },
-                Write(req) => break Context { addr, req, method: Method::Write },
-                _ => {
-                    let error = ErrMsg {
-                        code: AccessViolation,
-                        msg: Text( "Only RRQ and WRQ are supported.".into())
-                    };
-                    self.socket.send_to(&error.encode(), addr)?;
-                }
-            );
-        })
-    }
-}
-
-fn recv_ack(socket: &UdpSocket) -> Result<u16> {
-    let mut buf = vec![0; 512];
-    let len = socket.recv(&mut buf)?;
-    recv_frame!(&mut buf[..len], Acknowledge(ack) => Ok(ack))
 }
